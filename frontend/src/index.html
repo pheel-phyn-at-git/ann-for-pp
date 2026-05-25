@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ANN Visualizer | Forward Neural Network</title>
+    <meta name="description" content="Interactive forward neural network visualizer. Configure layers, submit inputs, and watch activations propagate in real time." />
+    <link rel="icon" type="image/png" href="img/watermelon-pixel-favicon_2.PNG" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+
+    <!--Watermelon logo -->
+    <div class="brand-mark">
+      <img src="img/watermelon-pixel-favicon_2.PNG" alt="ANN Visualizer logo" />
+    </div>
+
+
+    <!--  Header Notice  -->
+    <div class="renderNotice">
+        <span class="greet">Hello.</span>
+        <span>
+          Backend host migration from Render to another Service ongoing <br /> Schedule: May 22  
+        </span>
+    </div>
+
+    
+    <!--  Main container  -->
+    <main class="card">
+
+      <!--  Header  -->
+      <header class="card__header">
+
+        <h1>ANN Visualizer</h1>
+        <p class="subtitle">Build &amp; run your own Artificial Neural Network <br /> from scratch, in real time.</p>
+      </header>
+
+      <!--  Explainer diagram  -->
+      <section class="explainer">
+        <h2 class="section-label">What is an ANN?</h2>
+        <p class="explainer__text">
+          A <strong>feedforward neural network</strong> passes data through layers of neurons.
+          Each neuron computes a <em>weighted sum</em> of its inputs, adds a bias, then squashes
+          the result through a <strong>sigmoid</strong> activation function (output: 0–1).
+          <br /> Neurons with an output &gt; 0.6 are considered <span class="tag tag--fired">fired</span>.
+        </p>
+        <div class="diagram-wrap">
+          <img src="img/ArtificialNeuronNetworkModel_1.png" alt="Diagram of an artificial neural network" />
+        </div>
+      </section>
+
+      <!--  Step 1: Topology config  -->
+      <section class="config">
+        <h2 class="section-label">Step 1: Configure the Network</h2>
+
+        <!-- Presets -->
+        <div class="presets">
+          <p class="presets__label">Quick presets:</p>
+          <div class="presets__buttons">
+            <button class="btn btn--preset" data-preset="xor">XOR Gate</button>
+            <button class="btn btn--preset" data-preset="classifier">3-Class Classifier</button>
+            <button class="btn btn--preset" data-preset="deep">Deep Network</button>
+            <button class="btn btn--preset" data-preset="single">Single Neuron</button>
+          </div>
+          <p id="presetDescription" class="presets__desc"></p>
+        </div>
+
+
+        
+        <!-- Manual config -->
+        <div class="config__grid">
+          <div class="field">
+            <label for="inputCount">Input neurons</label>
+            <input type="number" id="inputCount" min="1" max="10" value="3" placeholder="e.g. 3" />
+            <span class="field__hint">How many values will you send in?</span>
+          </div>
+
+          <div class="field">
+            <label for="hiddenLayerCount">Hidden layers</label>
+            <input type="text" id="hiddenLayerCount" value="4, 3" placeholder="e.g. 4, 3, 2" />
+            <span class="field__hint">Comma-separated neuron counts per layer</span>
+          </div>
+
+          <div class="field">
+            <label for="outputCount">Output neurons</label>
+            <input type="number" id="outputCount" min="1" max="10" value="2" placeholder="e.g. 2" />
+            <span class="field__hint">How many outputs do you need?</span>
+          </div>
+        </div>
+
+        <div class="render-wrap">
+          <button class="btn btn--render" id="renderbtn">Render Network →</button>
+        </div>
+      </section>
+
+      <!-- Step 2: Canvas + inputs (hidden until rendered) -->
+      <section class="toHide">
+
+        <h2 class="section-label">Step 2: View the Network</h2>
+        <p class="section-sub">Lines show connections. Labels show layer types.</p>
+
+        <div class="canvas-wrapper">
+          <canvas id="canvas" aria-label="Neural network diagram"></canvas>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend" id="legend">
+          <span class="legend__item"><span class="dot dot--input"></span> Input</span>
+          <span class="legend__item"><span class="dot dot--fired"></span> Fired (sigmoid &gt; 0.6)</span>
+          <span class="legend__item"><span class="dot dot--unfired"></span> Not fired</span>
+          <span class="legend__item"><span class="dot dot--output"></span> Output</span>
+        </div>
+
+        <!-- Step 3: Submit values -->
+        <h2 class="section-label">Step 3: Submit Values &amp; Run</h2>
+        <p id="inputHint" class="section-sub">Enter numbers between 0 and 1 for best results.</p>
+
+        <form id="inputForm" class="run-form">
+          <input
+            type="text"
+            id="networkInput"
+            placeholder="e.g. 0.5, 0.8, 0.2"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button type="submit" class="btn btn--run">Run →</button>
+        </form>
+
+        <p id="outputWarning" class="warning" role="alert"></p>
+
+        <!-- Output display -->
+        <div class="output-area">
+          <div id="result" class="output__label"></div>
+          <div id="resultValues" class="output__values"></div>
+        </div>
+
+        <!-- Celebration -->
+        <div id="gifDiv" class="gif-wrap">
+          <img src="img/congratulations-confetti-gif.gif" alt="Celebration confetti" />
+        </div>
+
+      </section>
+
+    </main>
+
+    <script src="index.js"></script>
+  </body>
+</html>
