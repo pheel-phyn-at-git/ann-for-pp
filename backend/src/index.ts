@@ -6,7 +6,7 @@ import { EActivationFunction } from './lib/neuronal-net/activation-functions';
 import NeuronalNet from './lib/neuronal-net/neuronal-net';
 
 const app = Express();
-const PORT = process.env.PORT ?? 5500;
+const PORT = process.env.PORT ?? 3000;
 
 //  Middleware 
 app.use(cors()); // allows your Vercel frontend to call this
