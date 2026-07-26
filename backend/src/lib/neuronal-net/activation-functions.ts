@@ -7,6 +7,9 @@ export interface IActivationResult {
   value: number;
   /** 1 if the neuron fired (sigmoid > 0.6), 0 otherwise */
   fired: 0 | 1;
+
+  /** The pre-activation weighted sum (Σ(xᵢ·wᵢ) + bias), before squashing. */
+  z: number;
 }
 
 export class ActivationFunction {
@@ -30,7 +33,7 @@ export class ActivationFunction {
       case EActivationFunction.SIGMOID: {
         const value = ActivationFunction.sigmoid(x);
         const fired: 0 | 1 = value > 0.6 ? 1 : 0;
-        return { value, fired };
+        return { value, fired, z: x };
       }
     }
   }

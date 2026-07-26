@@ -7,9 +7,9 @@
   --green-glow:  rgba(172, 255, 48, 0.4);
   --red:         rgb(228, 53, 0);
   --red-dim:     rgba(228, 53, 0, 0.15);
-  --purple-dark: #402d13;
-  --purple-mid:  #7b5221;
-  --purple-hi:   #dcba4a;
+  --purple-dark: #1B1340;
+  --purple-mid:  #31217B;
+  --purple-hi:   #6C4ADC;
   --white:       #ffffff;
   --text:        #1a1a2e;
   --text-muted:  #555570;
@@ -329,6 +329,152 @@ body {
 
 
 
+/*  Quick-fill templates (Step 3)  */
+.quick-fill { margin-bottom: 1.1rem; }
+.quick-fill__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+.quick-fill__buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.btn--fill {
+  background: var(--white);
+  color: var(--purple-dark);
+  border: 2px solid var(--purple-hi);
+  font-size: 0.8rem;
+  padding: 0.45rem 1rem;
+}
+.btn--fill:hover { background: var(--purple-hi); color: var(--white); }
+
+/*  Canvas hint  */
+.canvas-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: -0.75rem 0 1.5rem;
+}
+
+/*  Explain-this-run link  */
+.explain-link {
+  display: none;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+.explain-link.show { display: inline-block; }
+
+/*  Weight tooltip  */
+.weight-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  pointer-events: none;
+  background: var(--purple-dark);
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.4rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  white-space: nowrap;
+}
+
+/*  Explanation modal  */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 19, 64, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+.modal {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 2rem 2.2rem 1.6rem;
+  width: 100%;
+  max-width: 640px;
+  max-height: 82vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  transform: translateY(10px);
+  transition: transform 0.2s ease;
+}
+.modal-overlay.active .modal { transform: translateY(0); }
+
+.modal__close {
+  position: absolute;
+  top: 0.9rem;
+  right: 1.1rem;
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.modal__close:hover { color: var(--red); }
+
+.modal__title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--purple-dark);
+  margin-bottom: 0.3rem;
+}
+.modal__subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-bottom: 1.3rem;
+}
+.modal__body { font-size: 0.92rem; line-height: 1.6; }
+.modal__footer { text-align: right; margin-top: 1.3rem; }
+
+.explain-section { margin-bottom: 1.4rem; }
+.explain-section h3 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--purple-hi);
+  margin-bottom: 0.5rem;
+}
+.explain-section p { color: var(--text); }
+.explain-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+.explain-list li {
+  background: rgba(108,74,220,0.06);
+  border-left: 3px solid var(--purple-hi);
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.3rem;
+  font-size: 0.88rem;
+}
+.explain-list li .fired-text   { color: #3d6e00; }
+.explain-list li .unfired-text { color: var(--red); }
+
+.explain-skip-note {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-muted);
+  background: var(--green-dim);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+
+
+
+
+
+
+
 /*  Celebration GIF  */
 .gif-wrap {
   display: none;
@@ -353,4 +499,5 @@ body {
   .card { padding: 2rem 1.5rem; }
   .card__header h1 { font-size: 2rem; }
   .output__values { font-size: 1.4rem; }
+  .modal { padding: 1.5rem 1.3rem 1.2rem; }
 }

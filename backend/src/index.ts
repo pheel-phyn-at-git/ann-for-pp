@@ -5,8 +5,16 @@ import cors from 'cors';
 import { EActivationFunction } from './lib/neuronal-net/activation-functions';
 import NeuronalNet from './lib/neuronal-net/neuronal-net';
 
+import * as dotenv from 'dotenv'
+dotenv.config()
+
 const app = Express();
-const PORT = process.env.PORT ?? 3000;
+
+
+
+
+
+
 
 //  Middleware 
 app.use(cors()); // allows your Vercel frontend to call this
@@ -16,7 +24,7 @@ app.use(Express.static(path.join(__dirname))); // serves index.html, styles.css,
 //  Routes 
 app.get('/', (_req: Request, res: Response) => {
   // res.sendFile(path.join(__dirname, 'index.html')); /* vercel now handles frontend */
-  res.status(404).json({ message: 'Backend serves as API only. Frontend is on Vercel' })
+  res.status(404).json({ message: 'Backend serves as API only. Frontend is on Vercel (😅 If I haven\'t changed it again.' })
 });
   
 // For Uptimerobot's interval ping check
@@ -74,7 +82,7 @@ app.post('/run-network', (req: Request, res: Response) => {
 });
 
 //  Start 
-app.listen(PORT, () => {
-  // console.log(`✓ ANN Visualizer running at http://localhost:${PORT}`);
-  console.log(`✓ ANN API running on port ${PORT}`);
+app.listen(process.env.BACKEND_PORT, () => {
+  // console.log(`✓ ANN Visualizer running at http://localhost:${process.env.BACKEND_PORT}`);
+  console.log(`✓ ANN API running on port ${process.env.BACKEND_PORT}`);
 });

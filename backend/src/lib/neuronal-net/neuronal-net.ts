@@ -22,6 +22,18 @@ export interface INetworkOutput {
    * Index 0 = user inputs, index n = output layer values.
    */
   eachLayerInputValues: number[][];
+
+  /**
+   * Pre-activation weighted sums (z = Σ(xᵢ·wᵢ)  bias) for every neuron —
+   * indexed the same way as firedNeurons (from the first hidden layer onward).
+   */
+  eachLayerZValues: number[][];
+  /**
+   * Connection weights for every neuron — indexed the same way as firedNeurons.
+   * weights[layerIndex][neuronIndex] is the array of weights that neuron applies
+   * to the values coming from the previous layer, in the previous layer's order.
+   */
+  weights: number[][][];
 }
 
 export default class NeuronalNet {
@@ -63,20 +75,29 @@ export default class NeuronalNet {
   public send(userInputs: number[]): INetworkOutput {
     const eachLayerInputValues: number[][] = [userInputs];
     const firedNeurons: number[][] = [];
+    const eachLayerZValues: number[][] = [];
+    const weights: number[][][] = [];
 
     let currentInputs = userInputs;
 
     for (const layer of this.layers) {
       const layerOutputs: number[] = [];
       const layerFired: number[] = [];
+      const layerZ: number[] = [];
+      const layerWeights: number[][] = [];
+
 
       for (const neuron of layer) {
         const result = neuron.send(currentInputs);
         layerOutputs.push(result.value);
         layerFired.push(result.fired);
+        layerZ.push(result.z);
+        layerWeights.push(neuron.weights);
       }
 
       firedNeurons.push(layerFired);
+      eachLayerZValues.push(layerZ);
+      weights.push(layerWeights);
       currentInputs = layerOutputs;
       eachLayerInputValues.push(layerOutputs);
     }
@@ -85,6 +106,8 @@ export default class NeuronalNet {
       finalOutputs: currentInputs,
       firedNeurons,
       eachLayerInputValues,
+      eachLayerZValues,
+      weights,
     };
   }
 }

@@ -10,12 +10,20 @@
 'use strict';
 
 const API_BASE = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3000'
+  ? 'http://localhost:1112'
   : 'https://ai-neuroncanvas.onrender.com'; // localhost or Render.com API
+
+
+
+
+
+
 
 //  Canvas setup 
 const canvas = document.getElementById('canvas');
 const ctx    = canvas.getContext('2d');
+
+
 
 //  Layout constants ─
 const NEURON_RADIUS  = 22;    // px — circle radius
@@ -23,12 +31,25 @@ const X_SPACING      = 180;   // px — horizontal gap between layers
 const Y_SPACING      = 90;    // px — vertical gap between neurons
 const CANVAS_PADDING = 60;    // px — outer padding
 
+
+
 //  Network state 
 /** @type {Array<Array<{x:number, y:number, fired:boolean, value:number}>>} */
 let neurons     = [];
 let inputCount  = 0;
 let hiddenLayers= [];
 let outputCount = 2;
+// Data from the most recent successful /run-network call.
+// lastWeights[layerIdx][dstNeuronIdx][srcNeuronIdx] = connection weight.
+// lastFiredMap[layerIdx][neuronIdx] = 1 if that neuron fired, 0 otherwise.
+// (layerIdx here is the "gap" index — 0 = input→hidden1, 1 = hidden1→hidden2, …)
+let lastWeights     = null;
+let lastFiredMap    = null;
+let lastRunData     = null;   // full response, kept so the explain popup can be reopened
+let lastRunInputs   = null;
+let hoveredConnection = null; // { layerIdx, srcIdx, dstIdx } | null
+
+
 
 //  Preset configurations 
 const PRESETS = {
@@ -66,6 +87,9 @@ const PRESETS = {
   },
 };
 
+
+
+
 //  DOM refs 
 const inputCountEl   = document.getElementById('inputCount');
 const hiddenLayerEl  = document.getElementById('hiddenLayerCount');
@@ -80,6 +104,16 @@ const gifDiv         = document.getElementById('gifDiv');
 const toHideDiv      = document.querySelector('.toHide');
 const inputHintEl    = document.getElementById('inputHint');
 const legendEl       = document.getElementById('legend');
+
+const weightTooltip  = document.getElementById('weightTooltip');
+const explainOverlay = document.getElementById('explainOverlay');
+const explainBody    = document.getElementById('explainBody');
+const explainClose   = document.getElementById('explainClose');
+const explainGotIt   = document.getElementById('explainGotIt');
+const reopenExplainBtn = document.getElementById('reopenExplain');
+
+
+
 
 
 //  Preset buttons 
@@ -97,6 +131,34 @@ document.querySelectorAll('[data-preset]').forEach((btn) => {
     networkInput.placeholder = `e.g. ${preset.sampleInput}`;
   });
 });
+
+
+
+
+//  Quick-fill templates (Step 3) 
+function buildTemplateValues(kind) {
+  switch (kind) {
+    case 'uniform':
+      return Array.from({ length: inputCount }, () => 0.5);
+    case 'random':
+      return Array.from({ length: inputCount }, () => Math.round(Math.random() * 100) / 100);
+    case 'alt':
+      return Array.from({ length: inputCount }, (_, i) => (i % 2 === 0 ? 0 : 1));
+    default:
+      return [];
+  }
+}
+
+document.querySelectorAll('[data-fill]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (!inputCount) return;
+    networkInput.value = buildTemplateValues(btn.dataset.fill).join(', ');
+    warningDiv.textContent = '';
+  });
+});
+
+
+
 
 //  Render button 
 renderBtn.addEventListener('click', () => {
@@ -118,6 +180,14 @@ renderBtn.addEventListener('click', () => {
   inputCount   = parsedInput;
   hiddenLayers = parsedHidden;
   outputCount  = parsedOutput;
+
+  lastWeights        = null;
+  lastFiredMap       = null;
+  lastRunData        = null;
+  lastRunInputs      = null;
+  hoveredConnection  = null;
+  reopenExplainBtn.classList.remove('show');
+  closeExplainModal();
 
   buildNeurons();
   resizeCanvas();
@@ -183,23 +253,44 @@ function neuronColor(layerIndex, isFired, value) {
   return `rgba(220, 80, 60, ${0.4 + (1 - value) * 0.4})`;
 }
 
+
+
 function drawConnections(firedMap) {
   for (let i = 0; i < neurons.length - 1; i++) {
-    for (const src of neurons[i]) {
-      for (const dst of neurons[i + 1]) {
+
+    neurons[i].forEach((src, srcIdx) => {
+      neurons[i + 1].forEach((dst, dstIdx) => {
         const hasFiredData = firedMap && firedMap[i];
-        const fired = hasFiredData && firedMap[i][neurons[i].indexOf(src)];
+        // fired state is per DESTINATION neuron, not source
+        const fired = hasFiredData && firedMap[i][dstIdx];
+        const isHovered =
+          hoveredConnection &&
+          hoveredConnection.layerIdx === i &&
+          hoveredConnection.srcIdx === srcIdx &&
+          hoveredConnection.dstIdx === dstIdx;
 
         ctx.beginPath();
         ctx.moveTo(src.x, src.y);
         ctx.lineTo(dst.x, dst.y);
-        ctx.strokeStyle = fired ? 'rgba(172,255,48,0.45)' : 'rgba(210,210,210,0.55)';
-        ctx.lineWidth   = fired ? 2 : 1;
+        // ctx.strokeStyle = fired ? 'rgba(172,255,48,0.45)' : 'rgba(210,210,210,0.55)';
+        // ctx.lineWidth   = fired ? 2 : 1;
+
+        if (isHovered) {
+          ctx.strokeStyle = 'rgba(108, 74, 220, 0.9)';
+          ctx.lineWidth   = 3.5;
+        } else {
+          ctx.strokeStyle = fired ? 'rgba(172,255,48,0.45)' : 'rgba(210,210,210,0.55)';
+          ctx.lineWidth   = fired ? 2 : 1;
+        }
+
         ctx.stroke();
-      }
-    }
+      });
+    });
   }
 }
+
+
+
 
 function drawNeurons() {
   neurons.forEach((layer, layerIndex) => {
@@ -247,12 +338,89 @@ function drawLayerLabels() {
   });
 }
 
+
+
 function drawNetwork(firedMap) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawConnections(firedMap);
   drawNeurons();
   drawLayerLabels();
 }
+
+
+
+//  Weight hover tooltip 
+function distanceToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq !== 0 ? ((px - x1) * dx + (py - y1) * dy) / lenSq : -1;
+  t = Math.max(0, Math.min(1, t));
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+  return Math.hypot(px - projX, py - projY);
+}
+
+function findNearestConnection(mx, my) {
+  const HOVER_THRESHOLD = 6;
+  let best = null;
+  let bestDist = HOVER_THRESHOLD;
+
+  for (let i = 0; i < neurons.length - 1; i++) {
+    neurons[i].forEach((src, srcIdx) => {
+      neurons[i + 1].forEach((dst, dstIdx) => {
+        const d = distanceToSegment(mx, my, src.x, src.y, dst.x, dst.y);
+        if (d < bestDist) {
+          bestDist = d;
+          best = { layerIdx: i, srcIdx, dstIdx };
+        }
+      });
+    });
+  }
+  return best;
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  if (neurons.length === 0) return;
+
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top)  * scaleY;
+
+  const found = findNearestConnection(mx, my);
+  hoveredConnection = found;
+
+  if (found) {
+    canvas.style.cursor = 'pointer';
+    if (lastWeights) {
+      const w = lastWeights[found.layerIdx][found.dstIdx][found.srcIdx];
+      weightTooltip.textContent = `weight: ${w.toFixed(3)}`;
+    } else {
+      weightTooltip.textContent = 'Run the network to see this weight';
+    }
+    weightTooltip.style.left    = `${e.clientX + 14}px`;
+    weightTooltip.style.top     = `${e.clientY + 14}px`;
+    weightTooltip.style.display = 'block';
+  } else {
+    canvas.style.cursor = 'default';
+    weightTooltip.style.display = 'none';
+  }
+
+  drawNetwork(lastFiredMap);
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredConnection = null;
+  weightTooltip.style.display = 'none';
+  canvas.style.cursor = 'default';
+  drawNetwork(lastFiredMap);
+});
+
+
+
+
 
 //  Form submission - run forward pass
 inputForm.addEventListener('submit', async (e) => {
@@ -313,6 +481,11 @@ inputForm.addEventListener('submit', async (e) => {
     });
   });
 
+  lastWeights   = data.weights;
+  lastFiredMap  = data.firedNeurons;
+  lastRunData   = data;
+  lastRunInputs = inputArray;
+
   drawNetwork(data.firedNeurons);
 
   //  Display outputs 
@@ -321,5 +494,151 @@ inputForm.addEventListener('submit', async (e) => {
 
   // Celebration GIF 🎉
   gifDiv.style.display = 'block';
-  setTimeout(() => { gifDiv.style.display = 'none'; }, 1200);
+  setTimeout(() => { gifDiv.style.display = 'none'; }, 7200);
+
+  reopenExplainBtn.classList.add('show');
+  showExplanation(inputArray, data);
 });
+
+
+
+
+
+
+
+
+
+
+//  "What just happened?" explanation popup 
+function openExplainModal()  { explainOverlay.classList.add('active'); }
+function closeExplainModal() { explainOverlay.classList.remove('active'); }
+
+explainClose.addEventListener('click', closeExplainModal);
+explainGotIt.addEventListener('click', closeExplainModal);
+explainOverlay.addEventListener('click', (e) => {
+  if (e.target === explainOverlay) closeExplainModal();
+});
+reopenExplainBtn.addEventListener('click', () => {
+  if (!lastRunData) return;
+  explainBody.innerHTML = buildExplanationHtml(lastRunInputs, lastRunData);
+  openExplainModal();
+});
+
+const fmt2 = (n) => Number(n).toFixed(2);
+const fmt3 = (n) => Number(n).toFixed(3);
+console.log("fmt2: ", fmt2, "\n fmt3: ", fmt3)
+
+function describeInputLayer(inputArray) {
+  const list = inputArray.map(fmt2).join(', ');
+  return `
+    <div class="explain-section">
+      <h3>Layer 1 · Input</h3>
+      <p>You gave the network ${inputArray.length} number${inputArray.length === 1 ? '' : 's'}:
+      <strong>${list}</strong>. No maths happens here — each value is just handed
+      straight to the next layer as-is.</p>
+    </div>
+  `;
+}
+
+function describeComputedLayer(label, layerNumber, prevValues, weightsForLayer, zValues, values, firedFlags, isOutput) {
+  const rows = values.map((value, ni) => {
+    const w = weightsForLayer && weightsForLayer[ni];
+    const z = zValues && zValues[ni];
+    const fired = !!(firedFlags && firedFlags[ni] === 1);
+
+    let sumExpr;
+    if (w && prevValues && w.length <= 5) {
+      const terms = w.map((wt, k) => `(${fmt2(prevValues[k])}×${fmt2(wt)})`);
+      sumExpr = `${terms.join(' + ')} + 0.25 (bias)`;
+    } else if (w) {
+      sumExpr = `its ${w.length} weighted inputs + 0.25 (bias)`;
+    } else {
+      sumExpr = `its weighted inputs + bias`; // backend hasn't sent weight data
+    }
+
+    const rawScoreText = typeof z === 'number' ? `${fmt3(z)} raw score. ` : '';
+
+
+    const verdict = isOutput
+      ? `That's one of the network's final answers.`
+      : fired
+        ? `Since ${fmt3(value)} &gt; 0.6, it <strong class="fired-text">fired 🟢</strong>.`
+        : `Since ${fmt3(value)} ≤ 0.6, it <strong class="unfired-text">did not fire 🔴</strong>.`;
+
+    return `<li><strong>Neuron ${ni + 1}:</strong> ${sumExpr} = ${rawScoreText}
+      Squashed by sigmoid, that becomes <strong>${fmt3(value)}</strong>. ${verdict}</li>`;
+  }).join('');
+
+  return `
+    <div class="explain-section">
+      <h3>Layer ${layerNumber} · ${label}</h3>
+      <ul class="explain-list">${rows}</ul>
+    </div>
+  `;
+}
+
+function buildExplanationHtml(inputArray, data) {
+  const layerLabels = ['Input', ...hiddenLayers.map((_, i) => `Hidden ${i + 1}`), 'Output'];
+  const totalLayers = layerLabels.length;
+
+  let explainIndices;
+  let skippedCount = 0;
+
+  if (totalLayers <= 5) {
+    explainIndices = layerLabels.map((_, i) => i);
+  } else {
+    explainIndices = [0, 1, 2, 3, totalLayers - 1];
+    skippedCount = totalLayers - 5;
+  }
+
+  const sections = explainIndices.map((layerIdx) => {
+    if (layerIdx === 0) return describeInputLayer(inputArray);
+
+    const compIdx = layerIdx - 1;
+
+    // Check if the required data exists for this specific index before calling the function
+    // Ensure all required data arrays exist for the specific component index
+    const hasData = data.weights[compIdx] && 
+                    data.eachLayerInputValues[layerIdx] &&
+                    data.eachLayerZValues[compIdx] && 
+                    data.firedNeurons[compIdx];
+
+    // console.log("layerLabels[layerIdx]", layerLabels[layerIdx], "\n data.eachLayerInputValues[layerIdx - 1]: ", data.eachLayerInputValues[layerIdx - 1], "\ndata.weights[compIdx]: ", data.weights[compIdx], "\ndata.eachLayerZValues[compIdx]: ", data.eachLayerZValues[compIdx], "\ndata.eachLayerInputValues[layerIdx]", data.eachLayerInputValues[layerIdx], "\ndata.firedNeurons[compIdx]", data.firedNeurons[compIdx]);
+
+    if (!hasData) {
+      console.warn(`Missing data for layer index: ${layerIdx}`);
+      return ''; 
+    }
+
+
+    return describeComputedLayer(
+      layerLabels[layerIdx],
+      layerIdx + 1,
+      data.eachLayerInputValues[layerIdx - 1],
+      data.weights[compIdx],
+      data.eachLayerZValues[compIdx],
+      data.eachLayerInputValues[layerIdx],
+      data.firedNeurons[compIdx],
+      layerIdx === totalLayers - 1
+    );
+  });
+
+  let skipNote = '';
+  if (skippedCount > 0) {
+    skipNote = `
+      <div class="explain-skip-note">
+        This network has ${totalLayers} layers. To keep this readable, we walked through
+        <strong>Input, Hidden 1, Hidden 2, Hidden 3</strong> and the <strong>Output</strong> layer —
+        the ${skippedCount} hidden layer${skippedCount === 1 ? '' : 's'} in between
+        ${skippedCount === 1 ? 'was' : 'were'} skipped from this explanation for brevity.
+      </div>
+    `;
+  }
+
+  return sections.join('') + skipNote;
+}
+
+function showExplanation(inputArray, data) {
+  explainBody.innerHTML = buildExplanationHtml(inputArray, data);
+  openExplainModal();
+}
